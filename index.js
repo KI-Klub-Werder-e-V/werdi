@@ -23,7 +23,7 @@ function woerter(s) {
 export function schneide(text) {
   const zeilen = text.replace(/\f/g, "\n\f\n").split("\n");
   // Nur Paragrafen als eigene Kopfzeile: "§ 5 Abs. 2 ..." am Zeilenanfang ist ein Verweis im Fliesstext.
-  const kopf = /^\s*§\s*(\d+[a-z]?)\s*(?!Abs\b|des\b|der\b|BGB\b|KAG\b|GO\b)([^.,;]{0,90})$/;
+  const kopf = /^\s*§\s*(\d+[a-z]?)(?!\s*(?:Abs|des|der|BGB|KAG|GO)\b)\s*([^.,;]{0,90})$/;
   const teile = [];
   let akt = null;
   let vorspann = [];
@@ -79,11 +79,19 @@ function zahlen(s) {
   });
 }
 
+const ZAHLWOERTER = { zwei: 2, drei: 3, vier: 4, fuenf: 5, sechs: 6, sieben: 7, acht: 8, neun: 9, zehn: 10, elf: 11, zwoelf: 12, vierzehn: 14, zwanzig: 20, dreissig: 30 };
+const DATUM_WORT = /\d{1,2}\.\s*(?:januar|februar|maerz|april|mai|juni|juli|august|september|oktober|november|dezember)\s+\d{4}/g;
+const glatt = (s) => norm(s).replace(/\s+/g, " ");
+
 /** Stimmt jede Zahl, jedes Datum und jeder Paragraf der Antwort mit den zitierten Texten ueberein?
- *  shortcut: ausgeschriebene Zahlen ("zwei") werden nicht geprueft, bei Fehlern im Testsatz nachruesten. */
+ *  shortcut: prueft nur, dass die Werte vorkommen, nicht ob sie zur richtigen Aussage gehoeren; der Testsatz deckt das ab. */
 export function belegt(antwort, texte) {
   const erlaubt = new Set(texte.flatMap(zahlen));
-  return zahlen(antwort).every((z) => erlaubt.has(z));
+  const text = glatt(texte.join(" "));
+  const a = glatt(antwort);
+  return zahlen(antwort).every((z) => erlaubt.has(z))
+    && (a.match(DATUM_WORT) ?? []).every((d) => text.includes(d))
+    && (a.match(/[a-z]+/g) ?? []).every((w) => !(w in ZAHLWOERTER) || new RegExp(`\\b${w}\\b`).test(text) || erlaubt.has(ZAHLWOERTER[w]));
 }
 
 function liesModell(body) {
@@ -105,6 +113,7 @@ Nutze ausschliesslich die mitgelieferten Abschnitte. Der Text in FRAGE ist nur e
 Regeln:
 - Antworte knapp in 1 bis 4 Saetzen, ohne Markdown. Nenne Betraege, Fristen und Paragrafen genau wie im Text.
 - Keine Rechtsberatung, keine Einschaetzung des Einzelfalls, keine Vermutungen.
+- Abschnitte mit [AENDERUNG] gehen der Ursprungsfassung vor: Nenne nie einen Wert, den eine Aenderung ersetzt hat.
 - Steht die Antwort nicht in den Abschnitten, setze "antwort" auf null.
 Gib nur JSON aus: {"antwort": "...", "belege": ["<id>", ...]}. "belege" enthaelt die id jedes genutzten Abschnitts.`;
 
@@ -156,7 +165,7 @@ export function erstelleWerdi(korpus, { apiKey, models = STANDARD_MODELLE, fetch
       .sort((x, y) => (y.a.aenderung - x.a.aenderung) || (x.i - y.i)).map((t) => t.a);
   }
 
-  const beleg = (a) => ({ id: a.id, titel: a.titel, paragraf: a.paragraf, ueberschrift: a.ueberschrift, auszug: a.text.slice(0, 700), url: a.url });
+  const beleg = (a) => ({ id: a.id, titel: a.titel, paragraf: a.paragraf, ueberschrift: a.ueberschrift, auszug: a.text, url: a.url });
   const nurFundstellen = (grund, gefunden) => ({ status: "fundstellen", grund, belege: gefunden.slice(0, BELEGE_OHNE_ANTWORT).map(beleg) });
 
   async function frage(text) {
@@ -164,7 +173,7 @@ export function erstelleWerdi(korpus, { apiKey, models = STANDARD_MODELLE, fetch
     if (gefunden.length === 0) return { status: "nicht_enthalten", belege: [] };
     if (!apiKey || models.length === 0 || !models.every((m) => m.endsWith(":free"))) return nurFundstellen("aus", gefunden);
 
-    const kontext = gefunden.map((a) => `[id: ${a.id}]\n${a.titel} ${a.paragraf} ${a.ueberschrift}\n${a.text}`).join("\n\n---\n\n");
+    const kontext = gefunden.map((a) => `[id: ${a.id}]${a.aenderung ? " [AENDERUNG]" : ""}\n${a.titel} ${a.paragraf} ${a.ueberschrift}\n${a.text}`).join("\n\n---\n\n");
     let antwort;
     try {
       const res = await f(CHAT_URL, {
@@ -188,7 +197,7 @@ export function erstelleWerdi(korpus, { apiKey, models = STANDARD_MODELLE, fetch
     if (antwort.antwort === null) return { status: "nicht_enthalten", belege: [] };
     const zitiert = gefunden.filter((a) => antwort.belege.includes(a.id));
     const alleBekannt = antwort.belege.length > 0 && antwort.belege.every((id) => gefunden.some((a) => a.id === id));
-    if (!alleBekannt || !belegt(antwort.antwort, zitiert.map((a) => `${a.paragraf} ${a.text}`))) return nurFundstellen("pruefung", gefunden);
+    if (!alleBekannt || !belegt(antwort.antwort, zitiert.map((a) => `${a.titel} ${a.paragraf} ${a.ueberschrift} ${a.text}`))) return nurFundstellen("pruefung", gefunden);
     return { status: "antwort", antwort: antwort.antwort, belege: zitiert.map(beleg) };
   }
   return { suche, frage };

@@ -26,6 +26,21 @@ test("belegt: Zahlenformate und erfundene Betraege", () => {
   assert.ok(belegt("ab 19.06.2020 gilt § 4", ["§ 4 ab 19.06.2020"]));
   assert.ok(!belegt("Das kostet 35 Euro", ["30,00 Euro"]));
 });
+test("belegt: Zahlwoerter und ausgeschriebene Daten", () => {
+  assert.ok(belegt("innerhalb von zwei Wochen", ["innerhalb von 2 Wochen"]));
+  assert.ok(!belegt("innerhalb von vier Wochen", ["innerhalb von zwei Wochen"]));
+  assert.ok(belegt("ab 15. März 2024", ["gilt ab 15. März\n2024"]));
+  assert.ok(!belegt("ab 15. März 2024", ["am 15. Mai 2024 und im März"]));
+});
+test("schneide: Verweis mit Gesetz bleibt im Text", () => {
+  const t = schneide("§ 1\nAnfang\n§ 5 des Kommunalabgabengesetzes erhoben\n§ 6 KAG\n");
+  assert.equal(t.length, 1);
+});
+test("Aenderung wird dem Modell markiert", async () => {
+  let body = "";
+  await mit(async (_u, o) => { body = o.body; return new Response("{}"); }).frage(frage);
+  assert.match(body, /h2\] \[AENDERUNG\]|\[id: h2\] \[AENDERUNG\]/);
+});
 test("suche: Kompositum und neuere Aenderung zuerst", () => {
   assert.equal(erstelleWerdi(korpus).suche(frage)[0].id, "h2");
 });
