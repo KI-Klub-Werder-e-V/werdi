@@ -1,0 +1,15 @@
+{
+  "name": "werdi",
+  "version": "2.0.0",
+  "description": "Ortsrecht-Assistent: PDFs einer Kommune rein, belegte Antworten mit Paragraf und Quelle raus.",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "files": ["index.js", "index.d.ts", "korpus/*/korpus.json", "korpus/*/verzeichnis.json"],
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "test": "node --test",
+    "korpus": "node scripts/korpus.mjs"
+  }
+}
