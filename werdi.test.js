@@ -56,7 +56,7 @@ test("429, Timeout, ungueltiges JSON, abgeschnitten, null", async () => {
   assert.equal((await mit(async () => { throw new DOMException("t", "TimeoutError"); }).frage(frage)).grund, "fehler");
   assert.equal((await mit(modell("kein json")).frage(frage)).grund, "modell");
   assert.equal((await mit(modell('{"antwort":"x","belege":["h2"]}', 200, "length")).frage(frage)).grund, "modell");
-  assert.equal((await mit(modell('{"antwort":null,"belege":[]}')).frage(frage)).grund, "modell");
+  assert.equal((await mit(modell('{"antwort":null,"belege":[]}')).frage(frage)).status, "nicht_enthalten");
 });
 test("Korpus: nichts Ausgeschlossenes enthalten", () => {
   const { abschnitte } = JSON.parse(readFileSync("korpus/werder-havel/korpus.json", "utf8"));

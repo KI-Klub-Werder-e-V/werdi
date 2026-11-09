@@ -120,13 +120,14 @@ export function erstelleWerdi(korpus, { apiKey, models = STANDARD_MODELLE, fetch
   const df = new Map();
   for (const d of docs) for (const t of d.tf.keys()) df.set(t, (df.get(t) ?? 0) + 1);
   const vokabular = [...df.keys()];
+  const titelWoerter = new Set(korpus.abschnitte.flatMap((a) => woerter(a.titel)));
 
   function varianten(q) {
     // Deutsche Komposita: "steuer" soll "hundesteuer" treffen, aber schwaecher als das exakte Wort.
     const m = new Map([[q, 1]]);
     if (q.length >= 4) for (const v of vokabular) if (v !== q && (v.startsWith(q) || v.endsWith(q))) m.set(v, 0.6);
-    // Und umgekehrt: "kitaplatz" soll "kita" treffen.
-    for (const v of vokabular) if (v.length >= 4 && v !== q && (q.startsWith(v) || q.endsWith(v))) m.set(v, 0.4);
+    // Und umgekehrt, nur fuer Woerter aus Satzungstiteln: "kitaplatz" soll "kita" treffen, "bundesliga" nicht "bund".
+    for (const v of titelWoerter) if (v.length >= 4 && v !== q && q.startsWith(v)) m.set(v, 0.4);
     return m;
   }
 
@@ -184,7 +185,7 @@ export function erstelleWerdi(korpus, { apiKey, models = STANDARD_MODELLE, fetch
     } catch { return nurFundstellen("fehler", gefunden); }
 
     if (!antwort) return nurFundstellen("modell", gefunden);
-    if (antwort.antwort === null) return nurFundstellen("modell", gefunden);
+    if (antwort.antwort === null) return { status: "nicht_enthalten", belege: [] };
     const zitiert = gefunden.filter((a) => antwort.belege.includes(a.id));
     const alleBekannt = antwort.belege.length > 0 && antwort.belege.every((id) => gefunden.some((a) => a.id === id));
     if (!alleBekannt || !belegt(antwort.antwort, zitiert.map((a) => `${a.paragraf} ${a.text}`))) return nurFundstellen("pruefung", gefunden);
