@@ -5,7 +5,7 @@ export const STANDARD_MODELLE = [
   "google/gemma-4-31b-it:free",
   "nvidia/nemotron-3.5-super-vl:free",
 ];
-const MAX_TEIL = 2800, TREFFER = 6, BELEGE_OHNE_ANTWORT = 3, TIMEOUT_MS = 45_000, MAX_ANTWORT_BYTES = 256 * 1024;
+const MAX_TEIL = 2800, TREFFER = 6, BELEGE_OHNE_ANTWORT = 6, TIMEOUT_MS = 45_000, MAX_ANTWORT_BYTES = 256 * 1024;
 const K1 = 1.4, B = 0.75, ABDECKUNG = 0.5;
 // shortcut: feste Alltagswoerter ohne Wortstamm-Analyse, bei Luecken im Testsatz ergaenzen.
 const SYNONYME = { kurtaxe: "kurbeitrag", kindergarten: "kita", haustier: "hund" };
